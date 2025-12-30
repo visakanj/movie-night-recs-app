@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { RoomsScreen } from './pages/RoomsScreen';
 import { PoolScreen } from './pages/PoolScreen';
-import { PickScreen } from './pages/PickScreen';
 import { TonightScreen } from './pages/TonightScreen';
 import { WatchedScreen } from './pages/WatchedScreen';
 import { CreateRoomScreen } from './pages/CreateRoomScreen';
@@ -14,7 +13,6 @@ export function App() {
         <Routes>
           <Route path="/" element={<RoomsScreen />} />
           <Route path="/pool" element={<PoolScreen />} />
-          <Route path="/pick" element={<PickScreen />} />
           <Route path="/tonight" element={<TonightScreen />} />
           <Route path="/watched" element={<WatchedScreen />} />
           <Route path="/create-room" element={<CreateRoomScreen />} />

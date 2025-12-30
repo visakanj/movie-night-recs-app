@@ -1,4 +1,5 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 import { AppBar } from '../components/AppBar';
 import { MoviePosterTile } from '../components/MoviePosterTile';
 import { BottomNav } from '../components/BottomNav';
@@ -42,7 +43,9 @@ export function PoolScreen() {
     rating: '7.2'
   }];
   return <div className="min-h-screen bg-background pb-28 animate-fade-in">
-      <AppBar title="Action Movies" />
+      <AppBar title="Action Movies" action={<button className="p-2 -mr-2 text-text-primary hover:text-text-secondary transition-colors rounded-full active:bg-white/10">
+            <Plus size={24} />
+          </button>} />
 
       <main className="pt-20 px-4 max-w-md mx-auto">
         <div className="flex gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar">
