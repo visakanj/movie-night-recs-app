@@ -1,101 +1,172 @@
-import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useSpring, animated } from '@react-spring/web';
+import { useDrag } from '@use-gesture/react';
+import { Trash2, X, Calendar, Star, Tv, Users } from 'lucide-react';
+import { ContributorChip } from './ContributorChip';
+interface Contributor {
+  id: string;
+  name: string;
+  role: string;
+  avatarUrl?: string;
+}
+interface Movie {
+  id: string;
+  title: string;
+  year: string;
+  posterUrl: string;
+  contributors: Contributor[];
+  addedBy?: string;
+  synopsis?: string;
+  rating?: string;
+  streamingProviders?: string[];
+}
 interface ActionSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
-  children: React.ReactNode;
+  onRemove: () => void;
+  movie: Movie | null;
 }
 export function ActionSheet({
   isOpen,
   onClose,
-  title,
-  children
+  onRemove,
+  movie
 }: ActionSheetProps) {
-  // Prevent body scroll when sheet is open
+  const [active, setActive] = useState(false);
+  const sheetHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const [{
+    y
+  }, apiY] = useSpring(() => ({
+    y: sheetHeight,
+    config: {
+      tension: 280,
+      friction: 30
+    }
+  }));
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
-  return <AnimatePresence>
-      {isOpen && <>
-          {/* Backdrop */}
-          <motion.div initial={{
-        opacity: 0
-      }} animate={{
-        opacity: 1
-      }} exit={{
-        opacity: 0
-      }} transition={{
-        duration: 0.2
-      }} onClick={onClose} className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" />
-
-          {/* Sheet */}
-          <motion.div initial={{
-        y: '100%'
-      }} animate={{
+      setActive(true);
+      apiY.start({
         y: 0
-      }} exit={{
-        y: '100%'
-      }} transition={{
-        type: 'spring',
-        damping: 25,
-        stiffness: 300
-      }} className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[32px] shadow-2xl overflow-hidden max-w-md mx-auto">
-            {/* Handle bar for visual affordance */}
-            <div className="w-full flex justify-center pt-3 pb-1" onClick={onClose}>
-              <div className="w-12 h-1.5 bg-gray-300 rounded-full" />
+      });
+    } else {
+      apiY.start({
+        y: sheetHeight,
+        onRest: () => setActive(false)
+      });
+    }
+  }, [isOpen, sheetHeight, apiY]);
+  const bind = useDrag(({
+    active,
+    movement: [, my],
+    cancel,
+    last
+  }) => {
+    if (my < -20) cancel();
+    if (last && my > 100) {
+      onClose();
+    } else {
+      apiY.start({
+        y: active ? Math.max(0, my) : 0,
+        immediate: active
+      });
+    }
+  }, {
+    from: () => [0, y.get()],
+    filterTaps: true,
+    bounds: {
+      top: 0
+    },
+    rubberband: true
+  });
+  if (!active && !isOpen) return null;
+  return <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+      {/* Backdrop - z-0 to ensure it stays behind */}
+      <animated.div className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto z-0" style={{
+      opacity: y.to([0, sheetHeight], [1, 0])
+    }} onClick={onClose} />
+
+      {/* Sheet Container - z-10 to ensure it stays on top */}
+      <animated.div className="relative z-10 w-full max-w-md bg-[#1A1A1C] rounded-t-3xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col h-[85vh]" style={{
+      y
+    }}>
+        {/* Drag Handle Area */}
+        <div {...bind()} className="w-full flex justify-center pt-4 pb-2 bg-[#1A1A1C] touch-none cursor-grab active:cursor-grabbing z-20 shrink-0">
+          <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+        </div>
+
+        {/* Close Button */}
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 text-white/50 hover:text-white bg-white/5 rounded-full transition-colors z-30">
+          <X size={20} />
+        </button>
+
+        {movie && <>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-[#1A1A1C]">
+              <div className="p-6 pt-2 space-y-6">
+                {/* Header: Poster + Basic Info */}
+                <div className="flex gap-5 shrink-0">
+                  <div className="shrink-0 w-32 aspect-[2/3] rounded-xl overflow-hidden shadow-lg ring-1 ring-white/10 bg-gray-800">
+                    <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover" />
+                  </div>
+
+                  <div className="flex-1 py-1">
+                    <h2 className="text-2xl font-bold text-white leading-tight mb-2">
+                      {movie.title}
+                    </h2>
+
+                    <div className="flex flex-wrap gap-y-2 gap-x-4 text-sm text-text-secondary mb-4">
+                      <div className="flex items-center">
+                        <Calendar className="w-4 h-4 mr-1.5 opacity-70" />
+                        <span>{movie.year}</span>
+                      </div>
+                      {movie.rating && <div className="flex items-center text-yellow-500">
+                          <Star className="w-4 h-4 mr-1.5 fill-current" />
+                          <span className="font-medium">{movie.rating}</span>
+                          <span className="text-text-tertiary ml-1">/ 10</span>
+                        </div>}
+                    </div>
+
+                    {/* Streaming Providers */}
+                    {movie.streamingProviders && movie.streamingProviders.length > 0 && <div className="flex flex-wrap gap-2 mt-auto">
+                          {movie.streamingProviders.map((provider, i) => <span key={i} className="px-2.5 py-1 rounded-md bg-white/10 border border-white/5 text-xs font-medium text-white/90">
+                              {provider}
+                            </span>)}
+                        </div>}
+                  </div>
+                </div>
+
+                {/* Synopsis */}
+                {movie.synopsis && <div className="space-y-2 shrink-0">
+                    <h3 className="text-sm font-semibold text-white/90 uppercase tracking-wide">
+                      Synopsis
+                    </h3>
+                    <p className="text-text-secondary text-sm leading-relaxed">
+                      {movie.synopsis}
+                    </p>
+                  </div>}
+
+                {/* Contributors */}
+                {movie.contributors && movie.contributors.length > 0 && <div className="space-y-3 shrink-0">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-white/90 uppercase tracking-wide">
+                      <Users className="w-4 h-4" />
+                      Contributors
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {movie.contributors.map(contributor => <ContributorChip key={contributor.id} name={contributor.name} role={contributor.role} avatarUrl={contributor.avatarUrl} />)}
+                    </div>
+                  </div>}
+              </div>
             </div>
 
-            <div className="px-6 pb-28 pt-2">
-              {title && <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {title}
-                  </h3>
-                  <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-100">
-                    <X size={20} />
-                  </button>
-                </div>}
-
-              <div className="space-y-2">{children}</div>
+            {/* Pinned Footer with Remove Button */}
+            <div className="p-6 pt-4 bg-[#1A1A1C] border-t border-white/5 shrink-0 pb-10">
+              <button onClick={onRemove} className="w-full py-3.5 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 font-semibold text-base transition-colors flex items-center justify-center gap-2 border border-red-500/20 active:scale-[0.98]">
+                <Trash2 size={18} />
+                Remove from Pool
+              </button>
             </div>
-          </motion.div>
-        </>}
-    </AnimatePresence>;
-}
-interface ActionSheetOptionProps {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  description?: string;
-  rightIcon?: React.ReactNode;
-}
-export function ActionSheetOption({
-  icon,
-  label,
-  onClick,
-  description,
-  rightIcon
-}: ActionSheetOptionProps) {
-  return <button onClick={onClick} className="w-full flex items-center p-4 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-colors group text-left">
-      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-900 group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-gray-200">
-        {icon}
-      </div>
-
-      <div className="ml-4 flex-1">
-        <div className="font-semibold text-gray-900 text-base">{label}</div>
-        {description && <div className="text-sm text-gray-500 mt-0.5">{description}</div>}
-      </div>
-
-      {rightIcon && <div className="text-gray-400 group-hover:text-gray-600 transition-colors">
-          {rightIcon}
-        </div>}
-    </button>;
+          </>}
+      </animated.div>
+    </div>;
 }
